@@ -1,0 +1,16 @@
+# Core pipeline
+yt-dlp>=2024.8.6
+faster-whisper>=1.0.3
+deep-translator>=1.11.4
+edge-tts>=6.1.12
+pydub>=0.25.1
+PyYAML>=6.0.1
+audioop-lts; python_version >= "3.13"
+
+# Web UI
+gradio>=4.44.0
+
+# Optional: offline translation with NLLB (translation.engine: nllb)
+# transformers>=4.44.0
+# sentencepiece>=0.2.0
+# torch>=2.3.0
