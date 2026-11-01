@@ -116,7 +116,8 @@ video-dubbing/
 
 ## Tips and limitations
 
-- Tamil is usually longer than English, so the dub is sped up to fit. If speech sounds rushed, raise `sync.max_overflow`, use a shorter source, or edit the segments and re-run.
+- Tamil is usually longer than English, so each clip is sped up (up to `sync.max_speedup`) to fit. Speech is never cut off: when a clip still runs long, later clips start a little late, and if the dub outlasts the video the last frame is held until it finishes. Raise `sync.max_speedup` to keep closer to the original timing at the cost of faster speech.
+- The output video is always H.264, so it plays on phones, WhatsApp and Windows. Sources in other codecs (Facebook often serves AV1) are re-encoded, which takes a little longer.
 - Machine translation can miss names, idioms and technical terms. Check the `.segments.json` file before publishing.
 - A single voice is used for the whole video. Multiple speakers are not separated.
 - The dub replaces the original audio unless you enable `merge.keep_original_audio`. Music and sound effects are only kept in that mode, at low volume.

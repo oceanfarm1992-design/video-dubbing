@@ -99,7 +99,7 @@ def run_pipeline(source, output=None, config=None, progress=None):
             job_dir / "fit",
             sample_rate=sync["sample_rate"],
             max_speedup=sync["max_speedup"],
-            max_overflow=sync.get("max_overflow", 1.4),
+            gap=sync.get("gap", 0.1),
         )
 
         report(0.90, "Merging audio and video")

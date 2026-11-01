@@ -42,6 +42,20 @@ def media_duration(path):
     return float(out.strip())
 
 
+def video_codec(path):
+    """Codec name of the first video stream, e.g. 'h264' or 'av1'."""
+    out = run_cmd(
+        [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name",
+            "-of", "csv=p=0",
+            path,
+        ]
+    )
+    return out.strip()
+
+
 def has_audio_stream(path):
     """True if the file contains at least one audio stream."""
     out = run_cmd(

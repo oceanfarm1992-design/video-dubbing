@@ -38,9 +38,14 @@ def build_dub_track(
     work_dir,
     sample_rate=44100,
     max_speedup=1.6,
-    max_overflow=1.4,
+    gap=0.1,
 ):
-    """Place every clip at its segment start on a silent track and export a wav."""
+    """Lay every clip on one track and export a wav. Speech is never cut off.
+
+    Each clip is sped up (up to `max_speedup`) to finish before the next segment.
+    If it still runs long, the following clips start later instead of overlapping,
+    and the track grows past `total_duration` when the last clip ends after the video.
+    """
     try:
         from pydub import AudioSegment
     except ImportError as exc:
@@ -50,29 +55,31 @@ def build_dub_track(
 
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
-    total_ms = int(total_duration * 1000)
-    track = AudioSegment.silent(duration=total_ms, frame_rate=sample_rate).set_channels(1)
 
+    placed = []  # (position in ms, audio)
+    cursor = 0.0  # earliest time the next clip may start
     for index, (seg, clip) in enumerate(zip(segments, clips)):
         if clip is None:
             continue
 
-        slot = max(seg.end - seg.start, 0.3)
+        start = max(seg.start, cursor)
         next_start = segments[index + 1].start if index + 1 < len(segments) else total_duration
-        available = max(next_start - seg.start - 0.05, slot)
-        # Let a clip use the silence after its segment, but not more than max_overflow x its slot.
-        target = min(available, max(slot, slot * max_overflow))
+        target = max(next_start - start - gap, 0.3)
 
         fitted = work_dir / f"fit_{index:04d}.wav"
         fit_clip(clip, fitted, target, sample_rate, max_speedup)
         audio = AudioSegment.from_wav(str(fitted))
 
-        limit_ms = int(available * 1000)
-        if len(audio) > limit_ms:
-            log.warning("Segment %d is still too long after speed-up; trimming the end.", index)
-            audio = audio[:limit_ms].fade_out(80)
+        if start - seg.start > 0.05:
+            log.warning("Segment %d starts %.1fs late so earlier speech is not cut off.",
+                        index, start - seg.start)
+        placed.append((int(start * 1000), audio))
+        cursor = start + len(audio) / 1000 + gap
 
-        track = track.overlay(audio, position=int(seg.start * 1000))
+    total_ms = max([int(total_duration * 1000)] + [pos + len(audio) for pos, audio in placed])
+    track = AudioSegment.silent(duration=total_ms, frame_rate=sample_rate).set_channels(1)
+    for position, audio in placed:
+        track = track.overlay(audio, position=position)
 
     track.export(str(out_wav), format="wav")
     return Path(out_wav)

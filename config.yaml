@@ -6,8 +6,9 @@ output_dir: output          # finished videos, subtitles and transcripts
 keep_temp: false            # keep intermediate files in the workspace
 
 download:
-  # yt-dlp format selector. Local files skip this step.
-  format: "bestvideo[height<=1080]+bestaudio/best"
+  # yt-dlp format selector. Prefers H.264 (avc1); other codecs are re-encoded
+  # to H.264 when merging. Local files skip this step.
+  format: "bestvideo[vcodec^=avc1][height<=1080]+bestaudio/bestvideo[height<=1080]+bestaudio/best"
 
 transcription:
   model_size: small         # tiny | base | small | medium | large-v3
@@ -32,7 +33,7 @@ tts:
 sync:
   sample_rate: 44100
   max_speedup: 1.6          # Tamil is usually longer than English; speed up at most this much
-  max_overflow: 1.4         # a clip may run this many times its slot if the gap allows
+  gap: 0.1                  # seconds of silence kept between clips; long clips push later ones back
 
 merge:
   keep_original_audio: false

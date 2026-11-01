@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from . import has_audio_stream, run_cmd
+from . import has_audio_stream, media_duration, run_cmd, video_codec
 
 
 def _srt_time(seconds):
@@ -37,9 +37,23 @@ def merge(
     dubbed_volume=1.0,
     srt_path=None,
 ):
-    """Combine the original video stream with the dubbed track into an mp4."""
+    """Combine the original video stream with the dubbed track into an mp4.
+
+    The video is re-encoded to H.264 unless it already is, so the result plays on
+    every phone and player. If the dub runs past the end of the video, the last
+    frame is held until the speech finishes.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    extra = media_duration(dub_wav) - media_duration(video_path)
+    pad = extra if extra > 0.05 else 0.0
+    if pad == 0.0 and video_codec(video_path) == "h264":
+        video_args = ["-c:v", "copy"]
+    else:
+        video_args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+        if pad:
+            video_args += ["-filter:v", f"tpad=stop_mode=clone:stop_duration={pad:.3f}"]
 
     cmd = ["ffmpeg", "-y", "-i", video_path, "-i", dub_wav]
     if srt_path:
@@ -50,7 +64,7 @@ def merge(
         graph = (
             f"[0:a]volume={original_volume}[bg];"
             f"[1:a]volume={dubbed_volume}[fg];"
-            "[bg][fg]amix=inputs=2:duration=first:dropout_transition=0,volume=2[a]"
+            "[bg][fg]amix=inputs=2:duration=longest:dropout_transition=0,volume=2[a]"
         )
         cmd += ["-filter_complex", graph, "-map", "0:v:0", "-map", "[a]"]
     else:
@@ -59,6 +73,6 @@ def merge(
     if srt_path:
         cmd += ["-map", "2:0", "-c:s", "mov_text", "-metadata:s:s:0", "language=tam"]
 
-    cmd += ["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", out_path]
+    cmd += video_args + ["-c:a", "aac", "-b:a", "192k", "-shortest", out_path]
     run_cmd(cmd)
     return out_path

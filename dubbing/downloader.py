@@ -12,7 +12,7 @@ def is_url(source):
     return bool(_URL_RE.match(str(source).strip()))
 
 
-def download_video(source, out_dir, fmt="bestvideo[height<=1080]+bestaudio/best"):
+def download_video(source, out_dir, fmt="bestvideo[vcodec^=avc1][height<=1080]+bestaudio/bestvideo[height<=1080]+bestaudio/best"):
     """Return a local path to the video. URLs are downloaded with yt-dlp."""
     source = str(source).strip()
     if not is_url(source):
