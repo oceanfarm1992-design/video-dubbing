@@ -14,20 +14,47 @@ _NLLB_CODES = {
 }
 
 
-def _translate_google(segments, source, target, retries=3):
+_GOOGLE_API = "https://translate.googleapis.com/translate_a/single"
+
+
+def _google_api_translate(text, source, target):
+    """Translate with Google's public gtx endpoint.
+
+    deep-translator scrapes translate.google.com/m, which Google often answers
+    with a CAPTCHA page (HTTP 429) even for a handful of requests.
+    """
+    import requests
+
+    response = requests.get(
+        _GOOGLE_API,
+        params={"client": "gtx", "sl": source, "tl": target, "dt": "t", "q": text},
+        timeout=20,
+    )
+    response.raise_for_status()
+    return "".join(part[0] for part in response.json()[0] if part and part[0])
+
+
+def _deep_translator_translate(text, source, target):
     try:
         from deep_translator import GoogleTranslator
     except ImportError as exc:
         raise DubbingError(
             "deep-translator is not installed. Run: pip install -r requirements.txt"
         ) from exc
+    return GoogleTranslator(source=source, target=target).translate(text)
 
-    translator = GoogleTranslator(source=source, target=target)
+
+def _translate_google(segments, source, target, retries=3):
     for seg in segments:
         last_error = None
         for attempt in range(retries):
             try:
-                seg.translation = (translator.translate(seg.text) or "").strip()
+                try:
+                    text = _google_api_translate(seg.text, source, target)
+                except Exception as exc:
+                    last_error = exc
+                    text = _deep_translator_translate(seg.text, source, target)
+                seg.translation = (text or "").strip()
                 break
             except Exception as exc:
                 last_error = exc
